@@ -2,7 +2,6 @@ clear all
 %% From Identifying suitable models for the heat dynamics of buildings
 
 % Note that C's units are in terms of hours!
-uT = 1; % This is a parameter to convert unit of time, set to 3600 for seconds
 
 C_i   = 0.0928*uT; %kWh/C 
 C_e   = 3.32*uT;   %kWh/C
