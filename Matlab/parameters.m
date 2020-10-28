@@ -16,7 +16,9 @@ A_w   = 5.75;      %m^2
 A_e   = 3.87;      %m^2
 Phi_h = 5.1;       %kW
 
-%% 
+SSModel; % Creates the linear A, B, C matrices
 
-SSModel;
-house = ss(A, B, C, 0);
+%% Get the desired sys objects
+H2T_s = ss(A, B, C, 0);
+T_a2T_s = ss(A, E[:,1], C, 0);
+S2T_s = ss(A, E[:,1], C, 0);
