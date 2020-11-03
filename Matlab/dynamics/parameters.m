@@ -21,5 +21,5 @@ SSModel; % Creates the linear A, B, C matrices
 %% Get the desired sys objects
 H2T_s = ss(A, B, C, 0);
 T_a2T_s = ss(A, E(:,1), C, 0);
-S2T_s = ss(A, E(:,1), C, 0);
+S2T_s = ss(A, E(:,2), C, 0);
 full = ss(A, [B E], C, zeros(1,m+p));
