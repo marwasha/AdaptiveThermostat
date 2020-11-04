@@ -18,6 +18,8 @@ Phi_h = 5.1;       %kW
 
 SSModel; % Creates the linear A, B, C matrices
 
+x_0 = [20; 20; 20; 20];
+
 %% Get the desired sys objects
 H2T_s = ss(A, B, C, 0);
 T_a2T_s = ss(A, E(:,1), C, 0);
