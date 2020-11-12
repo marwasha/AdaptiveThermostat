@@ -25,3 +25,15 @@ H2T_s = ss(A, B, C, 0);
 T_a2T_s = ss(A, E(:,1), C, 0);
 S2T_s = ss(A, E(:,2), C, 0);
 full = ss(A, [B E], C, zeros(1,m+p));
+
+%% MPC/Preview Param
+dt = 1/6;
+N = 30;
+
+
+full_d = c2d(full, dt);
+dyn.A = full_d.A;
+dyn.B = full_d.B(:,1);
+dyn.C = full_d.C;
+dyn.E = full_d.B(:,2:3);
+
