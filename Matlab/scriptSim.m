@@ -3,9 +3,9 @@ clear all;
 addpath("MPC", "dynamics", "lookup");
 parameters;
 dt = 1/6;
-hrSim = 40;
+hrSim = 48;
 steps = round(hrSim/dt);
-hrPrev = 4;
+hrPrev = 6;
 prev.N = round(hrPrev/dt);
 
 dynLin.A = full.A;
@@ -45,9 +45,9 @@ LUparam.t_night = 17;
 
 %% For loop
 x0;
-uS = zeros(200,1);
-yS = zeros(200,1);
-tS = zeros(200,1);
+uS = zeros(steps,1);
+yS = zeros(steps,1);
+tS = zeros(steps,1);
 
 for i = 1:steps
    % Setup up prev
@@ -72,4 +72,4 @@ figure(1)
 plot(tS,yS)
 figure(2)
 plot(tS,uS)
-title("InputSum = " + sum(uS))
+title("Input Cost = " + dt*sum(RPrev(1:steps).*uS))
