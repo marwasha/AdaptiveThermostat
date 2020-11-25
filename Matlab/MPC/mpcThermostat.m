@@ -72,6 +72,10 @@ A_lp = Gs;
 b_lp = Ws + Ts*x0 + Zs*D;
 U = linprog(Rs, A_lp, b_lp);
 
-u = U(1);
+if isempty(U)
+  u = 0; % turn heater off if no optimal value found
+else
+  u = U(1);
+end
 
 end
