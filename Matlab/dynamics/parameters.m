@@ -28,6 +28,7 @@ full = ss(A, [B E], C, zeros(1,m+p));
 
 %% MPC/Preview Param
 dt = 1/6;
+t_sample = .1/3600;
 N = 30;
 
 
