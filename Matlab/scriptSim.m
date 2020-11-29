@@ -1,13 +1,21 @@
 %% Setup
 clear all;
-addpath("MPC", "dynamics", "lookup", "estimation");
+
+addpath("Control/MPC", "Control/Dumb", "dynamics", "lookup", "estimation");
 parameters;
 plantTfCoef;
+hr2sec = 3600;
+sec2hr = 1/hr2sec;
+
 dt = 1/6;
 hrSim = 100;
 steps = round(hrSim/dt);
 hrPrev = 6;
 prev.N = round(hrPrev/dt);
+
+temp_sampling_time_sec = .1;
+temp_sampling_time_hr = .1*sec2hr;
+intersample_count = round(dt/(temp_sampling_time_hr));
 
 dynLin.A = full.A;
 dynLin.B = full.B(:,1);
@@ -74,7 +82,11 @@ for i = 1:steps
    xS(:,i) = x0;
    tS(i) = (i-1)*dt;
    % Sim
-   [time, xCont] = ode45(@(t,x) linContDyn(t,x,u, d, dynLin),[0 dt],x0);
+   %for j = 1:intersample_count
+   %    [time, xCont] = ode45(@(t,x) linContDyn(t,x,u, d, dynLin),[0 temp_sampling_time_hr],x0);
+   %    x0 = xCont(end,:)';
+   %end
+   [time, xCont] = ode45(@(t,x) linContDyn(t,x,u, d, dynLin),[0:temp_sampling_time_hr:dt],x0);
    x0 = xCont(end,:)';
    % Estimate matrices, update for next MPC iteration
    [Ahat, Bhat, xhat(:,i+1)] = estimate_fullStateFB(Ahat, Bhat, x0, xhat(:,i), [u d(1) d(2)]');
