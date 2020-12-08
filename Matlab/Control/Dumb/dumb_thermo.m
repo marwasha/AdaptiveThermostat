@@ -1,9 +1,11 @@
-function h = dumb_thermo(T_s,h_old)
+function h = dumb_thermo(T_s,h_old, T_set)
 
-if (T_s > 22 && h_old == 1)
+beta = 1;
+
+if (T_s > (T_set + beta) && h_old == 1)
     h = 0;
     return
-elseif (T_s < 20 && h_old == 0)
+elseif (T_s < (T_set - beta) && h_old == 0)
     h = 1;
     return
 end
