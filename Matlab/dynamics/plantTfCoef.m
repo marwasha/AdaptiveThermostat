@@ -1,6 +1,6 @@
 %Transfer function coefficients
 %obs_can_ss = canon(full, 'companion');
-a4 =   C_e*C_h*C_i*C_s*R_ea*R_ih*R_is;
+a4 =   C_e*C_h*C_i*C_s*R_ea*R_ih*R_is*R_ie;
 a3 =   C_e*C_h*C_i*R_ea*R_ie*R_ih + ...
        C_e*C_h*C_s*R_ea*R_ie*R_ih + ...
        C_e*C_h*C_s*R_ea*R_ie*R_is + ...
@@ -37,8 +37,8 @@ b0_H = Phi_h*(R_ea + R_ie);
 b1_a = C_h*R_ih;
 b0_a = 1;
 b2_s = A_w*(C_e*C_h*R_ea*R_ie*R_ih);
-b1_s = A_w*(C_e*R_ea*R_ie + C_h*R_ea*R_ih + C_h*R_ie*R_ih);
-b0_s = A_w*(R_ea + R_ie);
+b1_s = A_w*(C_e*R_ea*R_ie + C_h*R_ea*R_ih + C_h*R_ie*R_ih) + A_e*R_ea*C_h*R_ih;
+b0_s = A_w*(R_ea + R_ie) + A_e*R_ea;
 
 a3_hat = a3/a4;
 a2_hat = a2/a4;
