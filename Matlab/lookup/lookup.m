@@ -14,14 +14,16 @@ for i = 1:steps+param.N
     % Set 
     if mod(t,24) > param.t_day && mod(t,24) < param.t_night
         TS(i) = param.TSDay;
+        R(i) = .15;
     else
         TS(i) = param.TSNight;
+        R(i) = .11;
     end
     % Ambient Temp
     D(i,1) = param.Ta_ave + param.Ta_dev*cos((t-param.Ta_t_max)*(2*pi/24));
     % Sun
     D(i,2) = max(0,param.Ps_shift + param.Ps_max*cos((t-param.Ps_t_max)*(2*pi/24)));
     % Cost
-    r = max(param.r_min, r+normrnd(0,1/3)*param.r_var*dt);
-    R(i) = r;
+    %r = max(param.r_min, r+normrnd(0,1/3)*param.r_var*dt);
+    %R(i) = r;
 end

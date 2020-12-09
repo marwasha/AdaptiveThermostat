@@ -13,9 +13,9 @@ set_param(MODEL,'FastRestart','off');
 hr2sec = 3600;
 sec2hr = 1/hr2sec;
 dt = 1/6; % Works great with 1/4, but less spikes in estimations with 1/6
-hrSim = 200;
+hrSim = 24*10; % Making this a value of 24*even number so average cost is same (cause day night)
 steps = round(hrSim/dt);
-hrPrev = 6;
+hrPrev = 8;
 prev.N = round(hrPrev/dt);
 
 t_sample_est = 1/20; % Period for RLS algorithm
@@ -31,7 +31,7 @@ plantTfCoef;
 
 %% Dist Lookup
 LUparam.N = prev.N;
-LUparam.Ta_ave = 15;
+LUparam.Ta_ave = 12;
 LUparam.Ta_dev = 5;
 LUparam.Ta_t_max = 15;
 LUparam.Ps_max = .7;
@@ -41,7 +41,7 @@ LUparam.distShit = 1;
 LUparam.t_start = 3;
 LUparam.r_var = .03;
 LUparam.r_min = .1;
-LUparam.TSDay = 22;
+LUparam.TSDay = 21;
 LUparam.TSNight = 20;
 LUparam.t_day = 7;
 LUparam.t_night = 17;
@@ -71,6 +71,7 @@ set_param(MODEL,'FastRestart','on');
 u = 0;
 enableSmartThermo = false;
 
+f = waitbar(0,'Starting Simulation');
 for i = 1:steps
     % Setup up prev
     prev.D = DPrev(i:i+prev.N-1, :);
@@ -128,9 +129,12 @@ for i = 1:steps
           dynEst.E = Bhat_new(:,2:3);
       end
     end
-   
-    disp([num2str(floor(i*100/steps)), '%']);
+    
+    waitbar(i/steps,f,"Running");
+    %disp([num2str(floor(i*100/steps)), '%']);
 end
+
+waitbar(i/steps,f,"Done");
 
 set_param(MODEL,'FastRestart','off'); % If you run into problems
                                       % run this line and then
@@ -154,7 +158,7 @@ SimulationPlots;
 
 figure
 subplot(2,1,1)
-plot(tS,yS)
+plot(tS,yS, tS, TSPrev(1:steps) + 1, tS, TSPrev(1:steps) - 1)
 title('Temperature (C) Over Time');
 ylabel('Degrees C');
 xlabel('Time (hrs)');
