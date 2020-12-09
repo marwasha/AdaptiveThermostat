@@ -49,7 +49,7 @@ hold on
 plot(tS, thetaS(:,9), 'LineWidth', 2, 'Color', 'r');
 hold on
 plot(tS, thetaS(:,10), 'LineWidth', 2, 'Color', 'g');
-legend({'b^\thetaS_2', 'b^\thetaS_1', 'b^\thetaS_0'}, 'Location', 'northwest');
+legend({'b^\phi_2', 'b^\phi_1', 'b^\phi_0'}, 'Location', 'northwest');
 hold on
 plot(tS, b2_s*ones(length(thetaS(:,1)),1),'--', 'Color', 'b');
 hold on
@@ -58,7 +58,7 @@ hold on
 plot(tS, b0_s*ones(length(thetaS(:,1)),1),'--', 'Color', 'g');
 xlabel('Time (hrs)')
 ylabel('Value')
-title('Plant \thetaS_s Parameter Estimations')
+title('Plant \phi_s Parameter Estimations')
 ylim([-10 90])
 
 figure
