@@ -1,4 +1,3 @@
-clear all
 %% From Identifying suitable models for the heat dynamics of buildings
 
 % Note that C's units are in terms of hours!
@@ -18,9 +17,6 @@ Phi_h = 5.1;       %kW
 
 SSModel; % Creates the linear A, B, C matrices
 
-x_0 = [20; 20; 20; 20];
-plantTfCoef;
-
 %% Get the desired sys objects
 H2T_s = ss(A, B, C, 0);
 T_a2T_s = ss(A, E(:,1), C, 0);
@@ -28,10 +24,12 @@ S2T_s = ss(A, E(:,2), C, 0);
 full = ss(A, [B E], C, zeros(1,m+p));
 
 %% MPC/Preview Param
-dt = 1/6;
-t_sample = 10/3600; % Increased to speed up simulink. This is Ts for
-                    % digital filters
 N = 30;
+
+dynLin.A = full.A;
+dynLin.B = full.B(:,1);
+dynLin.C = full.C;
+dynLin.E = full.B(:,2:3);
 
 full_d = c2d(full, dt);
 dyn.A = full_d.A;
@@ -39,4 +37,3 @@ dyn.B = full_d.B(:,1);
 dyn.C = full_d.C;
 dyn.E = full_d.B(:,2:3);
 
-Filters; % just putting here for simulink callback

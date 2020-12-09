@@ -23,7 +23,7 @@ t_sample = 1/3600;   % Sampling period for digital filters
 t_observer = 0.01;   % Must match Ts in observer block code
 
 n_paramConverge = 35; % Start state observer after parameter convergence
-n_smartThermoOn = 80/dt; % Switch to smart thermo after n steps
+n_smartThermoOn = steps/2; % Switch to smart thermo after n steps
 
 parameters;
 Filters;
@@ -51,15 +51,12 @@ LUparam.t_night = 17;
 
 %% For loop
 x0     = [16; 16; 16; 16];
-uSM    = zeros(steps-n_smartThermoOn,1);
-ySM    = zeros(steps-n_smartThermoOn,1);
-uSD    = zeros(steps-n_smartThermoOn,1);
-ySD    = zeros(steps-n_smartThermoOn,1);
-tSM    = zeros(steps-n_smartThermoOn,1);
+uS     = zeros(steps,1);
+yS     = zeros(steps,1);
+tS     = zeros(steps,1);
 thetaS = zeros(steps,10);
 xhatS  = zeros(steps,4);
 xactS  = zeros(steps,4);
-tS     = zeros(steps,1);
 
 dynEst.A = dyn.A;
 dynEst.B = dyn.B;
@@ -83,22 +80,20 @@ for i = 1:steps
     % Solve for inputs
     d = prev.D(1,:)';
         
-    % Run dumb thermostat until smart thermostat is ready. Then run both in
-    % parallel and store results
+    % Run dumb thermostat for first half. After estimator convergence,
+    % switch to smart thermostat
     if (enableSmartThermo == true)
         u = mpcThermostat(x0, dynEst, prev);
-        uD = dumb_thermo(dyn.C*xD,uD, prev.Ts(1));
-        
-        % Simulate dumb
-        [time, xContD] = ode45(@(t,x) linContDyn(t,x,uD, d,dynLin),[0 dt],xD);
-        xD = xContD(end,:)';
-
     else
         u = dumb_thermo(dynLin.C*x0, u, prev.Ts(1));
-        uD = u;
     end
+    
+    % Store
+    uS(i) = u;
+    yS(i) = dynLin.C*x0;
+    tS(i) = (i-1)*dt;
    
-    %% Sim smart
+    %% Sim
     set_param(MODEL, 'StopTime', 'i*dt');
     simOut = sim(inputSim);
     
@@ -113,23 +108,12 @@ for i = 1:steps
     thetaS(i,:) = simOut.yout.signals(1).values(end,:);
     xhatS(i,:)  = simOut.yout.signals(2).values(end,:);
     xactS(i,:)  = simOut.yout.signals(4).values(end,:);
-    tS(i)       = (i-1)*dt;
       
     % Kick on smart thermostat after state estimate convergence
     if i < n_smartThermoOn
       x0 = xactS(i,:)';
-      xD = x0;
     else
       enableSmartThermo = true;
-      
-      % Store smart
-      uSM(i-n_smartThermoOn+1) = u;
-      ySM(i-n_smartThermoOn+1) = dynLin.C*xactS(i,:)';
-      tSM(i-n_smartThermoOn+1) = (i-1)*dt;
-      % Store dumb
-      uSD(i-n_smartThermoOn+1) = uD;
-      ySD(i-n_smartThermoOn+1) = dynLin.C*xD;
-        
       x0 = xhatS(i,:)'; 
       
       % Capture estimated dynamics
@@ -152,27 +136,30 @@ set_param(MODEL,'FastRestart','off'); % If you run into problems
                                       % run this line and then
                                       % restart matlab
 
+%% Rough cost analysis
+% Average electricity price during operation
+costAvgDumb  = mean(RPrev(1:steps/2));
+costAvgSmart = mean(RPrev(steps/2+1:steps));
+disp(['Avg. cost of electricity while dumb operating: ', num2str(costAvgDumb)]);
+disp(['Avg. cost of electricity while smart operating: ', num2str(costAvgSmart)]);
+
+% Cost adjustment for price
+costDumb = dt*sum(RPrev(1:steps/2).*uS(1:steps/2));
+costSmart = dt*sum(RPrev(steps/2+1:steps).*uS(steps/2+1:end));
+costAdjust = costAvgDumb/costAvgSmart;
+disp(['Savings: ', num2str((costDumb/costAdjust - costSmart)/costDumb*100), '%']);
+
 %% Plots
 SimulationPlots;
 
-costDumb  = dt*sum(RPrev(n_smartThermoOn:steps).*uSD);
-costSmart = dt*sum(RPrev(n_smartThermoOn:steps).*uSM);
-
 figure
-plot(tSM,ySD,tSM,ySM, tSM, TSPrev(n_smartThermoOn:steps) + 1, tSM, TSPrev(n_smartThermoOn:steps) - 1)
-xlabel("Time (hr)")
-ylabel("T_s (C)")
-legend("Dumb", "MPC", "T Set + beta", "T Set - beta")
-xlim([n_smartThermoOn*dt hrSim])
-
-figure
-plot(tSM,uSD,tSM,uSM)
-title("Input Cost Dumb = " + costDumb + " " + "Input Cost MPC = " + ...
-                 costSmart);
-xlabel("Time (hr)")
-ylabel("h")
-legend("Dumb", "MPC")
-xlim([n_smartThermoOn*dt hrSim])
-ylim([-.05 1.05])
-
-disp(['Savings: ', num2str((costDumb - costSmart)/costDumb*100), '%']);
+subplot(2,1,1)
+plot(tS,yS)
+title('Temperature (C) Over Time');
+ylabel('Degrees C');
+xlabel('Time (hrs)');
+ylim([0, 30])
+subplot(2,1,2)
+plot(tS,uS)
+title("Cost (Adjusted), Normal:" + costDumb/costAdjust + ...
+      "  Smart:" + costSmart);
