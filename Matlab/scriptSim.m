@@ -74,6 +74,7 @@ set_param(MODEL,'FastRestart','on');
 u = 0;
 enableSmartThermo = false;
 
+f = waitbar(0,'Starting Simulation');
 for i = 1:steps
     % Setup up prev
     prev.D = DPrev(i:i+prev.N-1, :);
@@ -145,8 +146,9 @@ for i = 1:steps
       end
     end
    
-    disp([num2str(floor(i*100/steps)), '%']);
+    waitbar(i/steps,f,"Running");
 end
+waitbar(i/steps,f,"Done");
 
 set_param(MODEL,'FastRestart','off'); % If you run into problems
                                       % run this line and then
