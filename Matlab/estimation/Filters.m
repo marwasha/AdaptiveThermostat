@@ -1,6 +1,3 @@
-%% Estimation
-t_sample_est = 0.1;
-
 %% Filter specs
 s = tf('s');
 filt_poles = 0.5*[-10 -20 -40 -60]; % Poles tuned ad hoc
@@ -18,3 +15,13 @@ filt_tfd_1 = c2d(filt_tf_1, t_sample, 'tustin', 'PrewarpFrequency');
 filt_tfd_2 = c2d(filt_tf_2, t_sample, 'tustin', 'PrewarpFrequency');
 filt_tfd_3 = c2d(filt_tf_3, t_sample, 'tustin', 'PrewarpFrequency');
 filt_tfd_4 = c2d(filt_tf_4, t_sample, 'tustin', 'PrewarpFrequency');
+
+% Remove workspace clutter
+clear s;
+clear filt_poles;
+clear filt_tf; 
+clear filt_gain; 
+clear filt_tf_1; 
+clear filt_tf_2; 
+clear filt_tf_3; 
+clear filt_tf_4;
