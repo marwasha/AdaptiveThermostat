@@ -31,7 +31,7 @@ plantTfCoef;
 
 %% Dist Lookup
 LUparam.N = prev.N;
-LUparam.Ta_ave = 15;
+LUparam.Ta_ave = 12;
 LUparam.Ta_dev = 5;
 LUparam.Ta_t_max = 15;
 LUparam.Ps_max = .7;
@@ -41,7 +41,7 @@ LUparam.distShit = 1;
 LUparam.t_start = 3;
 LUparam.r_var = .03;
 LUparam.r_min = .1;
-LUparam.TSDay = 22;
+LUparam.TSDay = 21;
 LUparam.TSNight = 20;
 LUparam.t_day = 7;
 LUparam.t_night = 17;
