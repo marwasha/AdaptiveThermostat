@@ -13,7 +13,7 @@ set_param(MODEL,'FastRestart','off');
 hr2sec = 3600;
 sec2hr = 1/hr2sec;
 dt = 1/6; % Works great with 1/4, but less spikes in estimations with 1/6
-hrSim = 24*10; % Making this a value of 24*even number so average cost is same (cause day night)
+hrSim = 24*10; % 24*even number so average cost is same
 steps = round(hrSim/dt);
 hrPrev = 8;
 prev.N = round(hrPrev/dt);
@@ -88,11 +88,6 @@ for i = 1:steps
     else
         u = dumb_thermo(dynLin.C*x0, u, prev.Ts(1));
     end
-    
-    % Store
-    uS(i) = u;
-    yS(i) = dynLin.C*x0;
-    tS(i) = (i-1)*dt;
    
     %% Sim
     set_param(MODEL, 'StopTime', 'i*dt');
@@ -109,6 +104,11 @@ for i = 1:steps
     thetaS(i,:) = simOut.yout.signals(1).values(end,:);
     xhatS(i,:)  = simOut.yout.signals(2).values(end,:);
     xactS(i,:)  = simOut.yout.signals(4).values(end,:);
+    
+    % Store
+    uS(i) = u;
+    yS(i) = dynLin.C*xactS(i,:)';
+    tS(i) = (i-1)*dt;
       
     % Kick on smart thermostat after state estimate convergence
     if i < n_smartThermoOn
@@ -131,7 +131,6 @@ for i = 1:steps
     end
     
     waitbar(i/steps,f,"Running");
-    %disp([num2str(floor(i*100/steps)), '%']);
 end
 
 waitbar(i/steps,f,"Done");
