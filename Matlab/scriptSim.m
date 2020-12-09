@@ -1,38 +1,35 @@
 %% Setup
 clear all;
+close all;
 
 addpath("Control/MPC", "Control/Dumb", "dynamics", "lookup", "estimation");
-parameters;
-plantTfCoef;
+
+% Init model
+ModelForAdapt2019;
+MODEL = 'ModelForAdapt2019';
+set_param(MODEL,'FastRestart','off');
+
+% Simulation parameters
 hr2sec = 3600;
 sec2hr = 1/hr2sec;
-
-dt = 1/6;
-hrSim = 100;
+dt = 1/6; % Works great with 1/4, but less spikes in estimations with 1/6
+hrSim = 200;
 steps = round(hrSim/dt);
 hrPrev = 6;
 prev.N = round(hrPrev/dt);
 
-temp_sampling_time_sec = .1;
-temp_sampling_time_hr = .1*sec2hr;
-intersample_count = round(dt/(temp_sampling_time_hr));
+t_sample_est = 1/20; % Period for RLS algorithm
+t_sample = 1/3600;   % Sampling period for digital filters
+t_observer = 0.01;   % Must match Ts in observer block code
 
-dynLin.A = full.A;
-dynLin.B = full.B(:,1);
-dynLin.C = full.C;
-dynLin.E = full.B(:,2:3);
+n_paramConverge = 35; % Start state observer after parameter convergence
+n_smartThermoOn = steps/2; % Switch to smart thermo after n steps
 
-full_d = c2d(full, dt);
-dyn.A = full_d.A;
-dyn.B = full_d.B(:,1);
-dyn.C = full_d.C;
-dyn.E = full_d.B(:,2:3);
-
-x0 = [16; 16; 16; 16];
+parameters;
+Filters;
+plantTfCoef;
 
 %% Dist Lookup
-%I think the easiest way to do preview is if we set up a lookup table for
-%the disturbances
 LUparam.N = prev.N;
 LUparam.Ta_ave = 15;
 LUparam.Ta_dev = 5;
@@ -53,74 +50,102 @@ LUparam.t_night = 17;
 
 
 %% For loop
-x0;
-uS = zeros(steps,1);
-yS = zeros(steps,1);
-tS = zeros(steps,1);
+x0     = [16; 16; 16; 16];
+uS     = zeros(steps,1);
+yS     = zeros(steps,1);
+tS     = zeros(steps,1);
+thetaS = zeros(steps,10);
+xhatS  = zeros(steps,4);
+xactS  = zeros(steps,4);
 
-% For estimation
-Ahat = zeros(4,4);
-Bhat = zeros(4,3);
-xhat = zeros(4, steps);
-xS   = zeros(4, steps);
 dynEst.A = dyn.A;
 dynEst.B = dyn.B;
 dynEst.C = dyn.C;
 dynEst.E = dyn.E;
 
+set_param(MODEL,'LoadInitialState','off');
+inputSim = Simulink.SimulationInput(MODEL);
+set_param(MODEL,'FastRestart','on');
+
+% Setup
+u = 0;
+enableSmartThermo = false;
+
 for i = 1:steps
-   % Setup up prev
-   prev.D = DPrev(i:i+prev.N-1, :);
-   prev.Ts = TSPrev(i:i+prev.N-1, :);
-   prev.R = RPrev(i:i+prev.N-1, :);
-   % Solve for inputs
-   d = prev.D(1,:)';
-   u = mpcThermostat(x0, dynEst, prev);
-   % Store
-   uS(i) = u;
-   yS(i) = dynLin.C*x0;
-   xS(:,i) = x0;
-   tS(i) = (i-1)*dt;
-   % Sim
-   %for j = 1:intersample_count
-   %    [time, xCont] = ode45(@(t,x) linContDyn(t,x,u, d, dynLin),[0 temp_sampling_time_hr],x0);
-   %    x0 = xCont(end,:)';
-   %end
-   [time, xCont] = ode45(@(t,x) linContDyn(t,x,u, d, dynLin),[0:temp_sampling_time_hr:dt],x0);
-   x0 = xCont(end,:)';
-   % Estimate matrices, update for next MPC iteration
-   [Ahat, Bhat, xhat(:,i+1)] = estimate_fullStateFB(Ahat, Bhat, x0, xhat(:,i), [u d(1) d(2)]');
-   dynEst.A = Ahat;
-   dynEst.B = Bhat(:,1);
-   dynEst.E = Bhat(:,2:3);
+    % Setup up prev
+    prev.D = DPrev(i:i+prev.N-1, :);
+    prev.Ts = TSPrev(i:i+prev.N-1, :);
+    prev.R = RPrev(i:i+prev.N-1, :);
+    
+    % Solve for inputs
+    d = prev.D(1,:)';
+        
+    if (enableSmartThermo == true)
+        u = mpcThermostat(x0, dynEst, prev);
+    else
+        u = dumb_thermo(dynLin.C*x0, u, mean(prev.Ts));
+    end
+    
+    % Store
+    uS(i) = u;
+    yS(i) = dynLin.C*x0;
+    tS(i) = (i-1)*dt;
+   
+    %% Sim
+    set_param(MODEL, 'StopTime', 'i*dt');
+    simOut = sim(inputSim);
+    
+    % Save and restore operating point
+    OperPoint = simOut.OperPoint;
+    set_param(MODEL,'LoadInitialState','on','InitialState',...
+                    'OperPoint');
+    set_param(MODEL,'SaveFinalState','on','FinalStateName',...
+                    'OperPoint','SaveOperatingPoint','on');
+        
+    % Store outputs
+    thetaS(i,:) = simOut.yout.signals(1).values(end,:);
+    xhatS(i,:)  = simOut.yout.signals(2).values(end,:);
+    xactS(i,:)  = simOut.yout.signals(4).values(end,:);
+      
+    % Kick on smart thermostat after state estimate convergence
+    if i < n_smartThermoOn
+      x0 = xactS(i,:)';
+    else
+      enableSmartThermo = true;
+      x0 = xhatS(i,:)'; 
+      
+      % Capture estimated dynamics
+      Ahat_new = simOut.EstimatedPlant_A.signals.values;
+      Bhat_new = simOut.EstimatedPlant_B.signals.values;
+   
+      if (~isequal(Ahat_new,dynEst.A) || ...
+          ~isequal(Bhat_new,dynEst.B))
+   
+          dynEst.A = Ahat_new;
+          dynEst.B = Bhat_new(:,1);
+          dynEst.E = Bhat_new(:,2:3);
+      end
+    end
+   
+    disp([num2str(floor(i*100/steps)), '%']);
 end
 
-%% Plots
-figure(1)
-plot(tS,yS)
-figure(2)
-plot(tS,uS)
-title("Input Cost = " + dt*sum(RPrev(1:steps).*uS))
+set_param(MODEL,'FastRestart','off'); % If you run into problems
+                                      % run this line and then
+                                      % restart matlab
 
-figure(3)
-subplot(4, 1, 1)
-plot(tS, [yS, xhat(1,(1:end-1))']);
-title('State Estimations vs Actual Based on Ahat, Bhat')
-xlabel('Time (hours)');
-ylabel('Temperature (C)');
-legend('Sensor Temp.', 'Sensor Temp. Est.');
-subplot(4, 1, 2)
-plot(tS, [xS(2,:)', xhat(2,(1:end-1))']);
-xlabel('Time (hours)');
-ylabel('Temperature (C)');
-legend('x2', 'x2 est.');
-subplot(4, 1, 3)
-plot(tS, [xS(3,:)', xhat(3,(1:end-1))']);
-xlabel('Time (hours)');
-ylabel('Temperature (C)');
-legend('x3', 'x3 est.');
-subplot(4, 1, 4)
-plot(tS, [xS(4,:)', xhat(4,(1:end-1))']);
-xlabel('Time (hours)');
-ylabel('Temperature (C)');
-legend('x4', 'x4 est.');
+%% Rough cost analysis
+% Average electricity price during operation
+costAvgDumb  = mean(RPrev(1:steps/2));
+costAvgSmart = mean(RPrev(steps/2+1:steps));
+disp(['Avg. cost of electricity while dumb operating: ', num2str(costAvgDumb)]);
+disp(['Avg. cost of electricity while smart operating: ', num2str(costAvgSmart)]);
+
+% Cost adjustment for price
+costDumb = dt*sum(RPrev(1:steps/2).*uS(1:steps/2));
+costSmart = dt*sum(RPrev(steps/2+1:steps).*uS(steps/2+1:end));
+costAdjust = costAvgDumb/costAvgSmart;
+disp(['Savings: ', num2str((costDumb/costAdjust - costSmart)/costDumb*100), '%']);
+
+%% Plots
+SimulationPlots;
